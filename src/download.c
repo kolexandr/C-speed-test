@@ -3,10 +3,10 @@
 #include <time.h>
 
 #include "download.h"
+#include "utils.h"
 
-typedef struct {
-    curl_off_t bytes;
-} TransferStats;
+static const double DOWNLOAD_DURATION_SECONDS = 15;
+
 
 static size_t write_callback(char *buffer, size_t size, size_t nmemb, void *userp){
     size_t received = size * nmemb;
@@ -16,21 +16,7 @@ static size_t write_callback(char *buffer, size_t size, size_t nmemb, void *user
     return received;
 }
 
-static double calculate_mbps(TransferStats *stats, double seconds){
-    if (seconds <= 0) return 0;
-    return ((double)stats->bytes * 8) / (1000000.0 * seconds);
-}
-
-static double get_time_seconds(){
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
-}
-
 double download_test(const char *URL){
-    const double time_for_download = 15.0; 
     CURL *curl = curl_easy_init();
 
     if (curl == NULL){
@@ -39,23 +25,13 @@ double download_test(const char *URL){
 
     TransferStats stats = {0};
     CURLcode result;
+
     curl_easy_setopt(curl, CURLOPT_URL, URL);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &stats);
-    // curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L); // for developing
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/8.18.0");
 
-    // for development
-
-    // curl_easy_getinfo(
-    //     curl,
-    //     CURLINFO_RESPONSE_CODE,
-    //     &response_code
-    // );
-
-    // printf("HTTP status: %ld\n", response_code);
-    // printf("CURL result: %d - %s\n", result, curl_easy_strerror(result));
     long response_code = 0;
     double local_start, total_time, elapsed, remaining;
     long remaining_ms;
@@ -65,11 +41,11 @@ double download_test(const char *URL){
     while (1){
         elapsed = get_time_seconds() - start;
 
-        if (elapsed >= time_for_download){
+        if (elapsed >= DOWNLOAD_DURATION_SECONDS){
             break;
         }
 
-        remaining = time_for_download - elapsed;
+        remaining = DOWNLOAD_DURATION_SECONDS - elapsed;
         remaining_ms = (long)(remaining * 1000);
 
         if (remaining_ms < 1) break;
@@ -98,7 +74,7 @@ double download_test(const char *URL){
       
         total_time = get_time_seconds() - local_start;
         printf("    Download No.%d\n", count);
-        printf("    Downloaded time: %.3f seconds\n", total_time);
+        printf("    Downloaded time: %.3f seconds\n\n", total_time);
         // printf("    Downloaded: %lld bytes\n", (long long)stats.bytes);
         count++;
     }
