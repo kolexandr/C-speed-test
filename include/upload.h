@@ -3,6 +3,8 @@
 
 #include "utils.h"
 
-int upload_test(const char *url, TransferStats *stats);
+int upload_test(const char *host, TransferStats *stats);
+
+void print_upload(TransferStats *stats );
 
 #endif

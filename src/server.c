@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
 
@@ -8,24 +9,6 @@
 #include "location.h"
 #include "server.h"
 
-
-static double write_callback(void *contents, size_t size, size_t nmemb, void *userp){
-    size_t total_size = size * nmemb;
-    Buffer *buffer  = (Buffer *)userp;
-
-    char *ptr = realloc(buffer->data, buffer->size + total_size + 1);
-    if (!ptr) {
-        fprintf(stderr, "Write callback is out of memory");
-        return 0; 
-    }
-
-    buffer->data = ptr;
-    memcpy(buffer->data + buffer->size, contents, total_size);
-    buffer->size += total_size;
-    buffer->data[buffer->size] = '\0';
-
-    return total_size;
-}
 
 static char *read_file(const char *json_file){
     FILE *file = fopen(json_file, "r");
@@ -71,28 +54,24 @@ static int check_reachable(const char *host){
     CURL *curl = curl_easy_init();
 
     if (curl == NULL){
-        return -1;
+        return 0;
     }
-
-    Buffer buffer;
-    buffer_allocate(&buffer);
     create_url(host, url, sizeof(url));
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "c-speedtest-cli/1.0");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
     CURLcode result = curl_easy_perform(curl);
 
-    buffer_free(&buffer);
+    long response_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
     curl_easy_cleanup(curl);
 
-    return (result == CURLE_OK) ? 1 : 0;
+    return result == CURLE_OK && response_code >= 200 && response_code < 300;
 }
 
 
@@ -161,41 +140,39 @@ int load_server_list(ServerList *list, const char *json_file){
     return 0;
 }
 
+int find_server_by_country(const ServerList *list, const char *country, Server *server){
+    if (!list || !list->servers || !country || !country[0] || !server){
+        return -1;
+    }
+
+    for (int i = 0; i < list->count; i++){
+        if (strcasecmp(list->servers[i].country, country) == 0 &&
+            check_reachable(list->servers[i].host)){
+            *server = list->servers[i];
+            return 0;
+        }
+    }
+
+    fprintf(stderr, "No reachable server found for country: %s\n", country);
+    return -1;
+}
+
 int find_best_server(const ServerList *list, const Location *location, Server *server){
-    if (!list || !location || !server){
+    if (!list || !list->servers || !location || !server){
         return -1;
     }
 
     printf("Trying to find the best server for %s %s...\n", location->country, location->city);
-
-    int found = 0;
-    int backup_found = 0;
-    Server server_backup = {0};
-    for (int i = 0; i < list->count && !found; i++){
-        if (strcmp(list->servers[i].city,location->city) == 0){
-            if (check_reachable(list->servers[i].host)){
-                *server = list->servers[i];
-                found = 1;
-            }
+    for (int i = 0; i < list->count; i++){
+        if (strcasecmp(list->servers[i].country, location->country) == 0 &&
+            strcasecmp(list->servers[i].city, location->city) == 0 &&
+            check_reachable(list->servers[i].host)){
+            *server = list->servers[i];
+            return 0;
         }
-        if (strcmp(list->servers[i].country, location->country) == 0){
-            if (check_reachable(list->servers[i].host)){
-                server_backup = list->servers[i];
-                backup_found = 1;
-            }
-        }   
     }
 
-    if(!found && backup_found){
-        *server = server_backup;
-    }
-
-    if (!found){
-        fprintf(stderr, "Unable to find a reachable server.\n");
-        return -1;
-    }
-
-    return 0;
+    return find_server_by_country(list, location->country, server);
 }
 
 
@@ -211,5 +188,5 @@ void print_server(Server *server){
     printf("    Country :%s\n", server->country);
     printf("    City    :%s\n", server->city);
     printf("    Provider:%s\n", server->provider);
-    printf("    Host    :%s\n", server->host);
+    printf("    Host    :%s\n\n", server->host);
 }

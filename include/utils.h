@@ -1,6 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <stddef.h>
+#include <curl/curl.h>
+
 typedef struct{
     char *data;
     size_t size;
@@ -19,5 +22,7 @@ void buffer_free(Buffer *buffer);
 double calculate_mbps(TransferStats *stats);
 
 double get_time_seconds(void);
+
+int build_url(char *url, size_t url_size, const char *host, const char *path);
 
 #endif
