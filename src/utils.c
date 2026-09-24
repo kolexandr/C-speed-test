@@ -24,7 +24,7 @@ double calculate_mbps(TransferStats *stats){
     return ((double)stats->bytes * 8) / (1000000.0 * stats->total_time);
 }
 
-double get_time_seconds(){
+double get_time_seconds(void){
     struct timespec ts;
 
     clock_gettime(CLOCK_MONOTONIC, &ts);

@@ -3,6 +3,6 @@
 
 #include "utils.h"
 
-double upload_test(const char *url, TransferStats *stats);
+int upload_test(const char *url, TransferStats *stats);
 
 #endif

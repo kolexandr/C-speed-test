@@ -18,6 +18,6 @@ void buffer_free(Buffer *buffer);
 
 double calculate_mbps(TransferStats *stats);
 
-double get_time_seconds();
+double get_time_seconds(void);
 
 #endif
