@@ -19,9 +19,9 @@ void buffer_free(Buffer *buffer){
     buffer->size = 0;
 }
 
-double calculate_mbps(TransferStats *stats, double seconds){
-    if (seconds <= 0) return 0;
-    return ((double)stats->bytes * 8) / (1000000.0 * seconds);
+double calculate_mbps(TransferStats *stats){
+    if (stats->total_time <= 0) return 0;
+    return ((double)stats->bytes * 8) / (1000000.0 * stats->total_time);
 }
 
 double get_time_seconds(){

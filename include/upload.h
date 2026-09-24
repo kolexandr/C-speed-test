@@ -1,6 +1,8 @@
-#ifdef UPLOAD_H
+#ifndef UPLOAD_H
 #define UPLOAD_H
 
-double upload_test(const char[] *url);
+#include "utils.h"
+
+double upload_test(const char *url, TransferStats *stats);
 
 #endif

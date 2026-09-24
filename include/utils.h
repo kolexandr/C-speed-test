@@ -7,6 +7,8 @@ typedef struct{
 } Buffer;
 
 typedef struct {
+    double mbps;
+    double total_time;
     curl_off_t bytes;
 } TransferStats;
 
@@ -14,7 +16,7 @@ void buffer_allocate(Buffer *buffer);
 
 void buffer_free(Buffer *buffer);
 
-double calculate_mbps(TransferStats *stats, double seconds);
+double calculate_mbps(TransferStats *stats);
 
 double get_time_seconds();
 

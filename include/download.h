@@ -1,6 +1,10 @@
 #ifndef DOWNLOAD_H
 #define DOWNLOAD_H
 
-double download_test(const char *url);
+#include "utils.h"
+
+int download_test(const char *url, TransferStats *stats);
+
+void print_download(TransferStats *stats);
 
 #endif

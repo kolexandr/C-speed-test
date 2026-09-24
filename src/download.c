@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include <time.h>
+#include <string.h>
 
 #include "download.h"
 #include "utils.h"
@@ -16,21 +17,21 @@ static size_t write_callback(char *buffer, size_t size, size_t nmemb, void *user
     return received;
 }
 
-double download_test(const char *URL){
+int download_test(const char *URL, TransferStats *stats){
     CURL *curl = curl_easy_init();
 
     if (curl == NULL){
         return -1;
     }
 
-    TransferStats stats = {0};
+    // memset(stats, 0, sizeof(TransferStats));
     CURLcode result;
 
     curl_easy_setopt(curl, CURLOPT_URL, URL);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &stats);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, stats);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/8.18.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "c-speedtest-cli/1.0");
 
     long response_code = 0;
     double local_start, total_time, elapsed, remaining;
@@ -79,15 +80,16 @@ double download_test(const char *URL){
         count++;
     }
 
-    total_time = get_time_seconds() - start;
-    double mbps = calculate_mbps(&stats, total_time); 
-
-    printf("Download has finished. RESULTS:\n");
-    printf("Downloaded speed: %.2f Mbps/s\n", mbps);
-    printf("Downloaded time: %.3f seconds\n", total_time);
-    printf("Downloaded: %lld bytes\n", (long long)stats.bytes);
-
+    stats->total_time = get_time_seconds() - start;
+    stats->mbps = calculate_mbps(stats);
     curl_easy_cleanup(curl);
 
-    return mbps;
+    return 0;
+}
+
+void print_download(TransferStats *stats){
+    printf("Download test has finished. RESULTS:\n");
+    printf("Downloaded speed: %.2f Mbps/s\n", stats->mbps);
+    printf("Downloaded time: %.3f seconds\n", stats->total_time);
+    printf("Downloaded: %lld bytes\n", (long long)stats->bytes);
 }

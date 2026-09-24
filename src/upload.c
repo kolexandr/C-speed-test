@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <curl/curl.h>
+#include <stdlib.h>
+
 #include "upload.h"
+#include "utils.h" 
 
 #define UPLOAD_BUFFER_SIZE (1024 * 1024)
 const static double test_duration_seconds = 15;
@@ -39,7 +42,7 @@ static size_t write_callback(char *buffer, size_t size, size_t nmemb, void *user
 }
 
 
-double upload_test(const char *url){
+double upload_test(const char *url, TransferStats *stats){
 
     UploadData upload = {0};
     upload.data = malloc(UPLOAD_BUFFER_SIZE);
@@ -55,7 +58,7 @@ double upload_test(const char *url){
 
     if(curl == NULL){
         free(upload.data);
-        return 1;
+        return -1;
     }
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -64,7 +67,7 @@ double upload_test(const char *url){
     curl_easy_setopt(curl, CURLOPT_READDATA, &upload);
     // curl_easy_setopt(curl, CURLOPT_WRITEDATA, &stats);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/8.18.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "c-speedtest-cli/1.0");
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
     
 

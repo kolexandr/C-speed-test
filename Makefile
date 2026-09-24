@@ -4,10 +4,12 @@ LDLIBS = -lcurl -lcjson
 
 TARGET = speedtest
 
-OBJS = build/main.o \
-       build/download.o \
+OBJS = build/download.o \
+	   build/upload.o \
        build/utils.o \
-	   build/location.o
+	   build/location.o \
+	   build/server.o \
+	   build/main.o
 
 $(TARGET): $(OBJS)
 	$(CC) $^ -o $@ $(LDLIBS)
