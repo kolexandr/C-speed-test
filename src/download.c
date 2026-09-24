@@ -7,9 +7,8 @@
 #include "download.h"
 #include "utils.h"
 
-#ifndef DOWNLOAD_DURATION_SECONDS
+
 #define DOWNLOAD_DURATION_SECONDS 15
-#endif
 #define DOWNLOAD_PATH "/speedtest/random4000x4000.jpg"
 #define URL_SIZE 512
 
@@ -50,9 +49,11 @@ int download_test(const char *host, TransferStats *stats){
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "c-speedtest-cli/1.0");
 
     long response_code = 0;
-    double elapsed, remaining;
+    double elapsed, remaining, now;
     long remaining_ms;
     double start = get_time_seconds();
+    double last_update = start;
+    print_progress_bar(0, DOWNLOAD_DURATION_SECONDS);
 
     while (1){
         elapsed = get_time_seconds() - start;
@@ -72,10 +73,15 @@ int download_test(const char *host, TransferStats *stats){
         curl_off_t previous_bytes = stats->bytes;
         result = curl_easy_perform(curl);
         
+        now = get_time_seconds();
 
+        if (now - last_update >= 0.5){
+            print_progress_bar(now - start, DOWNLOAD_DURATION_SECONDS);
+            last_update = now;
+        }
 
         if (result != CURLE_OK && result != CURLE_OPERATION_TIMEDOUT){
-            printf("Download failed: %s\n", curl_easy_strerror(result));
+            printf("\nDownload failed: %s\n", curl_easy_strerror(result));
             curl_easy_cleanup(curl);
             return -1;
         }
@@ -88,7 +94,7 @@ int download_test(const char *host, TransferStats *stats){
             break;
         }
         if (response_code < 200 || response_code >= 300){
-            printf("Server returned HTTP %ld\n", response_code);
+            printf("\nServer returned HTTP %ld\n", response_code);
             curl_easy_cleanup(curl);
             return -1;
         }
@@ -98,12 +104,16 @@ int download_test(const char *host, TransferStats *stats){
         if ((content_type && strncasecmp(content_type, "text/html", 9) == 0) ||
             stats->bytes == 0 ||
             (result == CURLE_OK && stats->bytes == previous_bytes)){
+            putchar('\n');
+            fflush(stdout);
             fprintf(stderr, "Download endpoint returned no test data or an HTML page.\n");
             curl_easy_cleanup(curl);
             return -1;
         }
         if (result == CURLE_OPERATION_TIMEDOUT){
             if (get_time_seconds() - start < DOWNLOAD_DURATION_SECONDS - 0.01){
+                putchar('\n');
+                fflush(stdout);
                 fprintf(stderr, "Download connection timed out.\n");
                 curl_easy_cleanup(curl);
                 return -1;
@@ -111,6 +121,10 @@ int download_test(const char *host, TransferStats *stats){
             break;
         }
     }
+
+    if (stats->bytes > 0) print_progress_bar(1, 1);
+    putchar('\n');
+    fflush(stdout);
 
     stats->total_time = get_time_seconds() - start;
     stats->mbps = calculate_mbps(stats);

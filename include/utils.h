@@ -25,4 +25,6 @@ double get_time_seconds(void);
 
 int build_url(char *url, size_t url_size, const char *host, const char *path);
 
+void print_progress_bar(double elapsed, double duration);
+
 #endif

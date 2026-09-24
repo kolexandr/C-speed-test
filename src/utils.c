@@ -55,3 +55,18 @@ int build_url(char *url, size_t url_size, const char *host, const char *path){
 
     return 0;
 }
+
+void print_progress_bar(double elapsed, double duration){
+    if (duration <= 0) return;
+
+    int percent = (int)(elapsed * 100 / duration);
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+
+    printf("\r[");
+    for (int i = 0; i < 20; i++){
+        putchar(i < percent / 5 ? '#' : '-');
+    }
+    printf("] %3d%%", percent);
+    fflush(stdout);
+}

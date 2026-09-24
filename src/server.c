@@ -136,7 +136,6 @@ int load_server_list(ServerList *list, const char *json_file){
     list->count = index;
     cJSON_Delete(json_parsed);
 
-    printf("There were %d servers loaded.\n", list->count);
     return 0;
 }
 
@@ -162,7 +161,6 @@ int find_best_server(const ServerList *list, const Location *location, Server *s
         return -1;
     }
 
-    printf("Trying to find the best server for %s %s...\n", location->country, location->city);
     for (int i = 0; i < list->count; i++){
         if (strcasecmp(list->servers[i].country, location->country) == 0 &&
             strcasecmp(list->servers[i].city, location->city) == 0 &&

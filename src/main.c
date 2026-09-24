@@ -62,6 +62,8 @@ static int server_action(Server *server){
         return 1;
     }
 
+    printf("%d servers loaded from the server list file.\n\n", list.count);
+    printf("Trying to find the best server for %s %s...\n", location.country, location.city);
     int result = find_best_server(&list, &location, server);
     free_server_list(&list);
     if (result != 0){
@@ -81,6 +83,7 @@ static int country_action(const char *country, int upload_mode){
         return 1;
     }
 
+    printf("%d servers loaded from the server list file.\n\n", list.count);
     int result = find_server_by_country(&list, country, &server);
     free_server_list(&list);
     if (result != 0) return 1;
@@ -89,15 +92,73 @@ static int country_action(const char *country, int upload_mode){
     return upload_mode ? upload_action(server.host) : download_action(server.host);
 }
 
+static void print_transfer_summary(const char *name, const TransferStats *stats, int status){
+    printf("%s:\n", name);
+    if (status != 0){
+        printf("    Status:   Failed\n\n");
+        return;
+    }
+    printf("    Speed:    %.2f Mbps\n", stats->mbps);
+    printf("    Time:     %.3f seconds\n", stats->total_time);
+    printf("    Data:     %lld bytes\n\n", (long long)stats->bytes);
+}
+
 static int auto_action(void){
+    Location location = {0};
     Server server = {0};
-    if (server_action(&server) != 0){
+    ServerList list = {0};
+
+    printf("Finding location...\n");
+    fflush(stdout);
+    if (get_location(&location) != 0){
+        fprintf(stderr, "Location is unavailable at the moment. Please try later.\n");
         return 1;
     }
+    printf("Location detected: %s, %s\n\n", location.country, location.city);
 
-    int status = download_action(server.host);
-    status |= upload_action(server.host);
-    return status;
+    printf("Loading server list...\n");
+    fflush(stdout);
+    if (load_server_list(&list, SERVER_JSON) != 0){
+        fprintf(stderr, "Failed to load server list.\n");
+        return 1;
+    }
+    printf("%d servers loaded.\n\n", list.count);
+
+    printf("Finding the best server...\n");
+    fflush(stdout);
+    int server_status = find_best_server(&list, &location, &server);
+    free_server_list(&list);
+    if (server_status != 0){
+        fprintf(stderr, "No server available for: %s %s\n", location.city, location.country);
+        return 1;
+    }
+    printf("Server selected: %s (%s, %s)\n\n", server.provider, server.city, server.country);
+
+    TransferStats download_stats = {0};
+    TransferStats upload_stats = {0};
+    printf("Running download test...\n");
+    fflush(stdout);
+    int download_status = download_test(server.host, &download_stats);
+    printf("Download test %s.\n\n", download_status == 0 ? "completed" : "failed");
+
+    printf("Running upload test...\n");
+    fflush(stdout);
+    int upload_status = upload_test(server.host, &upload_stats);
+    printf("Upload test %s.\n\n", upload_status == 0 ? "completed" : "failed");
+
+    printf("SPEED TEST RESULTS:\n\n");
+    printf("Location:\n");
+    printf("    Country:  %s\n", location.country);
+    printf("    City:     %s\n\n", location.city);
+    printf("Server:\n");
+    printf("    Country:  %s\n", server.country);
+    printf("    City:     %s\n", server.city);
+    printf("    Provider: %s\n", server.provider);
+    printf("    Host:     %s\n\n", server.host);
+    print_transfer_summary("Download", &download_stats, download_status);
+    print_transfer_summary("Upload", &upload_stats, upload_status);
+
+    return download_status != 0 || upload_status != 0;
 }
 
 int main(int argc, char *argv[]){

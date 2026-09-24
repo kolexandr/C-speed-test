@@ -8,9 +8,7 @@
 #include "utils.h"
 
 #define UPLOAD_BUFFER_SIZE (1024 * 1024)
-#ifndef UPLOAD_DURATION_SECONDS
 #define UPLOAD_DURATION_SECONDS 15
-#endif
 #define UPLOAD_PATH "/speedtest/upload.php"
 #define URL_SIZE 512
 
@@ -80,6 +78,8 @@ int upload_test(const char *host, TransferStats *stats){
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "c-speedtest-cli/1.0");
 
     double start = get_time_seconds();
+    double last_update = start;
+    print_progress_bar(0, UPLOAD_DURATION_SECONDS);
     int status = -1;
     while (1){
         double remaining = UPLOAD_DURATION_SECONDS - (get_time_seconds() - start);
@@ -90,6 +90,12 @@ int upload_test(const char *host, TransferStats *stats){
         }
         curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, remaining_ms);
         CURLcode result = curl_easy_perform(curl);
+        double now = get_time_seconds();
+        if (now - last_update >= 0.5){
+            print_progress_bar(now - start, UPLOAD_DURATION_SECONDS);
+            last_update = now;
+        }
+
         long response_code = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
 
@@ -97,20 +103,34 @@ int upload_test(const char *host, TransferStats *stats){
             get_time_seconds() - start >= UPLOAD_DURATION_SECONDS - 0.01 &&
             (response_code == 0 || (response_code >= 200 && response_code < 300))){
             status = stats->bytes > 0 ? 0 : -1;
-            if (status != 0) fprintf(stderr, "Upload timed out without a confirmed transfer.\n");
+            if (status != 0){
+                putchar('\n');
+                fflush(stdout);
+                fprintf(stderr, "Upload timed out without a confirmed transfer.\n");
+            }
             break;
         }
         if (result != CURLE_OK || response_code < 200 || response_code >= 300){
+            putchar('\n');
+            fflush(stdout);
             fprintf(stderr, "Upload failed: HTTP %ld (%s).\n", response_code, curl_easy_strerror(result));
             break;
         }
         curl_off_t bytes = 0;
         curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD_T, &bytes);
         if (bytes != UPLOAD_BUFFER_SIZE){
+            putchar('\n');
+            fflush(stdout);
             fprintf(stderr, "Server did not accept the complete upload.\n");
             break;
         }
         stats->bytes += bytes;
+    }
+
+    if (status == 0){
+        print_progress_bar(1, 1);
+        putchar('\n');
+        fflush(stdout);
     }
 
     stats->total_time = get_time_seconds() - start;
@@ -123,7 +143,7 @@ int upload_test(const char *host, TransferStats *stats){
 
 void print_upload(TransferStats *stats){
     printf("Upload test has finished. RESULTS:\n");
-    printf("Upload speed: %.2f Mbps\n", stats->mbps);
-    printf("Upload time: %.3f seconds\n", stats->total_time);
-    printf("Uploaded: %lld bytes\n\n", (long long)stats->bytes);
+    printf("    Upload speed:       %.2f Mbps\n", stats->mbps);
+    printf("    Upload time:        %.3f seconds\n", stats->total_time);
+    printf("    Uploaded:           %lld bytes\n\n", (long long)stats->bytes);
 }
